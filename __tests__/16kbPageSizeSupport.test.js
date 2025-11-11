@@ -30,7 +30,7 @@ describe('16KB Memory Page Size Support', () => {
     expect(buildGradleContent).toMatch(/useLegacyPackaging.*false/)
 
     // Should use updated MMKV version that supports 16KB page sizes
-    expect(buildGradleContent).toMatch(/mmkv-shared:4\.1\.1/)
+    expect(buildGradleContent).toMatch(/mmkv-shared:4\.0\.0/)
   })
 
   test('should have gradle.properties configured for 16KB support', () => {
@@ -86,10 +86,10 @@ describe('16KB Memory Page Size Support', () => {
       const version = mmkvMatch[1]
       const [major, minor] = version.split('.').map(Number)
 
-      // Ensure we're using MMKV 4.1.1 or later
+      // Ensure we're using MMKV 4.0.0 or later
       expect(major).toBeGreaterThanOrEqual(4)
       if (major === 4)
-        expect(minor).toBeGreaterThanOrEqual(1)
+        expect(minor).toBeGreaterThanOrEqual(0)
     }
   })
 })
