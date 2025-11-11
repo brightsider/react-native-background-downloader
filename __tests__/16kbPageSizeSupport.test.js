@@ -18,9 +18,9 @@ describe('16KB Memory Page Size Support', () => {
     const buildGradlePath = path.join(__dirname, '../android/build.gradle')
     const buildGradleContent = fs.readFileSync(buildGradlePath, 'utf8')
 
-    // Should have updated targetSdkVersion and compileSdkVersion to 35
-    expect(buildGradleContent).toMatch(/targetSdkVersion.*35/)
-    expect(buildGradleContent).toMatch(/compileSdkVersion.*35/)
+    // Should have updated targetSdkVersion and compileSdkVersion to 36
+    expect(buildGradleContent).toMatch(/targetSdkVersion.*36/)
+    expect(buildGradleContent).toMatch(/compileSdkVersion.*36/)
 
     // Should have NDK configuration for supported architectures
     expect(buildGradleContent).toMatch(/abiFilters.*arm64-v8a/)
@@ -30,7 +30,7 @@ describe('16KB Memory Page Size Support', () => {
     expect(buildGradleContent).toMatch(/useLegacyPackaging.*false/)
 
     // Should use updated MMKV version that supports 16KB page sizes
-    expect(buildGradleContent).toMatch(/mmkv-shared:2\.2\.0/)
+    expect(buildGradleContent).toMatch(/mmkv-shared:4\.1\.1/)
   })
 
   test('should have gradle.properties configured for 16KB support', () => {
@@ -57,8 +57,8 @@ describe('16KB Memory Page Size Support', () => {
     const exampleBuildGradleContent = fs.readFileSync(exampleBuildGradlePath, 'utf8')
 
     // Should have updated SDK versions
-    expect(exampleBuildGradleContent).toMatch(/targetSdkVersion.*35/)
-    expect(exampleBuildGradleContent).toMatch(/compileSdkVersion.*35/)
+    expect(exampleBuildGradleContent).toMatch(/targetSdkVersion.*36/)
+    expect(exampleBuildGradleContent).toMatch(/compileSdkVersion.*36/)
 
     // Check example app gradle.properties
     const exampleGradlePropsPath = path.join(__dirname, '../example/android/gradle.properties')
@@ -69,7 +69,7 @@ describe('16KB Memory Page Size Support', () => {
   })
 
   test('MMKV dependency version should support 16KB page sizes', () => {
-    // MMKV 2.2.0+ includes support for 16KB memory page sizes
+    // MMKV 4.x includes support for 16KB memory page sizes
     // This test ensures we're using a compatible version
 
     const fs = require('fs')
@@ -86,10 +86,10 @@ describe('16KB Memory Page Size Support', () => {
       const version = mmkvMatch[1]
       const [major, minor] = version.split('.').map(Number)
 
-      // Ensure we're using MMKV 2.2.0 or later
-      expect(major).toBeGreaterThanOrEqual(2)
-      if (major === 2)
-        expect(minor).toBeGreaterThanOrEqual(2)
+      // Ensure we're using MMKV 4.1.1 or later
+      expect(major).toBeGreaterThanOrEqual(4)
+      if (major === 4)
+        expect(minor).toBeGreaterThanOrEqual(1)
     }
   })
 })
