@@ -38,9 +38,9 @@ dependencies {
     implementation 'com.facebook.react:react-native:+'
 
     // MMKV dependency updated for 16KB page size support
-    // MMKV 4.x includes support for 16KB memory page sizes required by Android 15+
+    // MMKV 2.2.0+ includes support for 16KB memory page sizes required by Android 15+
     // Uses mmkv-shared to maintain compatibility with react-native-mmkv 4+
-    implementation 'com.tencent:mmkv-shared:4.0.0'
+    implementation 'com.tencent:mmkv-shared:2.2.0'
 
     implementation 'com.google.code.gson:gson:2.12.1'
 }
