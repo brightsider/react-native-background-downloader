@@ -1,14 +1,66 @@
 import { NativeModules, NativeEventEmitter } from 'react-native'
 import DownloadTask from './lib/DownloadTask'
-import NativeRNBackgroundDownloader, { type Spec as NativeBackgroundDownloaderSpec } from './src/NativeRNBackgroundDownloader'
+import NativeRNBackgroundDownloader, {
+  type NativeRNBackgroundDownloaderConstants,
+  type Spec as NativeBackgroundDownloaderSpec,
+} from './src/NativeRNBackgroundDownloader'
 
-const isTurboModuleEnabled = (global as any).__turboModuleProxy != null
+type TurboModuleProxyGlobal = typeof globalThis & { __turboModuleProxy?: unknown }
+
+const globalWithTurboModuleProxy = globalThis as TurboModuleProxyGlobal
+
+const isTurboModuleEnabled = globalWithTurboModuleProxy.__turboModuleProxy != null
 
 const NativeModule: NativeBackgroundDownloaderSpec = isTurboModuleEnabled
   ? NativeRNBackgroundDownloader
   : (NativeModules.RNBackgroundDownloader as NativeBackgroundDownloaderSpec)
 
-const RNBackgroundDownloaderEmitter = new NativeEventEmitter(NativeModule as any)
+const NativeModuleConstants: NativeRNBackgroundDownloaderConstants = (() => {
+  type LegacyNativeModule = NativeBackgroundDownloaderSpec &
+    Partial<NativeRNBackgroundDownloaderConstants>
+
+  const getLegacyConstants = (
+    legacyModule: LegacyNativeModule
+  ): NativeRNBackgroundDownloaderConstants => {
+    const {
+      documents,
+      TaskRunning,
+      TaskSuspended,
+      TaskCanceling,
+      TaskCompleted,
+    } = legacyModule
+
+    if (
+      documents == null ||
+      TaskRunning == null ||
+      TaskSuspended == null ||
+      TaskCanceling == null ||
+      TaskCompleted == null
+    )
+      throw new Error('[RNBackgroundDownloader] Native module constants are not available')
+
+    return {
+      documents,
+      TaskRunning,
+      TaskSuspended,
+      TaskCanceling,
+      TaskCompleted,
+    }
+  }
+
+  try {
+    const constants = NativeModule.getConstants?.()
+
+    if (constants && typeof constants === 'object')
+      return constants
+  } catch (error) {
+    console.warn('[RNBackgroundDownloader] Failed to load native constants', error)
+  }
+
+  return getLegacyConstants(NativeModule as LegacyNativeModule)
+})()
+
+const RNBackgroundDownloaderEmitter = new NativeEventEmitter(NativeModule as unknown as object)
 
 const MIN_PROGRESS_INTERVAL = 250
 const tasksMap = new Map()
@@ -78,14 +130,14 @@ export function checkForExistingDownloads () {
         const task = new DownloadTask(taskInfo, tasksMap.get(taskInfo.id))
         log('[RNBackgroundDownloader] checkForExistingDownloads-3', taskInfo)
 
-        if (taskInfo.state === NativeModule.TaskRunning) {
+        if (taskInfo.state === NativeModuleConstants.TaskRunning) {
           task.state = 'DOWNLOADING'
-        } else if (taskInfo.state === NativeModule.TaskSuspended) {
+        } else if (taskInfo.state === NativeModuleConstants.TaskSuspended) {
           task.state = 'PAUSED'
-        } else if (taskInfo.state === NativeModule.TaskCanceling) {
+        } else if (taskInfo.state === NativeModuleConstants.TaskCanceling) {
           task.stop()
           return null
-        } else if (taskInfo.state === NativeModule.TaskCompleted) {
+        } else if (taskInfo.state === NativeModuleConstants.TaskCompleted) {
           if (taskInfo.bytesDownloaded === taskInfo.bytesTotal)
             task.state = 'DONE'
           else
@@ -163,7 +215,7 @@ export function download (options: DownloadOptions) {
 }
 
 export const directories = {
-  documents: NativeModule.documents,
+  documents: NativeModuleConstants.documents,
 }
 
 export default {

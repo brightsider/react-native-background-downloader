@@ -15,6 +15,7 @@ NativeModules.RNBackgroundDownloader = {
     pauseTask: jest.fn(),
     resumeTask: jest.fn(),
     stopTask: jest.fn(),
+    documents: '/mock/documents',
     TaskRunning: 0,
     TaskSuspended: 1,
     TaskCanceling: 2,

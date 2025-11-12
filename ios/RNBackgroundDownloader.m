@@ -1,6 +1,7 @@
 #import "RNBackgroundDownloader.h"
 #import "RNBGDTaskConfig.h"
 #import <MMKV/MMKV.h>
+#import <React/RCTBridge.h>
 #ifdef RCT_NEW_ARCH_ENABLED
 #import "RNBackgroundDownloaderSpec.h"
 using namespace facebook::react;
@@ -31,7 +32,8 @@ static CompletionHandler storedCompletionHandler;
     float progressInterval;
     NSDate *lastProgressReportedAt;
     BOOL isBridgeListenerInited;
-    BOOL isJavascriptLoaded;
+    BOOL hasListeners;
+    NSMutableArray<NSDictionary *> *pendingEvents;
 }
 
 RCT_EXPORT_MODULE();
@@ -59,6 +61,40 @@ RCT_EXPORT_MODULE();
         @"downloadComplete",
         @"downloadFailed"
     ];
+}
+
+- (void)startObserving
+{
+    DLog(@"[RNBackgroundDownloader] - [startObserving]");
+    @synchronized (sharedLock) {
+        hasListeners = YES;
+        for (NSDictionary *event in pendingEvents) {
+            NSString *eventName = event[@"name"];
+            id body = event[@"body"];
+            [super sendEventWithName:eventName body:body == [NSNull null] ? nil : body];
+        }
+        [pendingEvents removeAllObjects];
+    }
+}
+
+- (void)stopObserving
+{
+    DLog(@"[RNBackgroundDownloader] - [stopObserving]");
+    @synchronized (sharedLock) {
+        hasListeners = NO;
+    }
+}
+
+- (void)emitEventWithName:(NSString *)name body:(id)body
+{
+    @synchronized (sharedLock) {
+        if (hasListeners) {
+            [super sendEventWithName:name body:body];
+        } else {
+            id payload = body == nil ? [NSNull null] : body;
+            [pendingEvents addObject:@{ @"name": name, @"body": payload }];
+        }
+    }
 }
 
 - (NSDictionary *)constantsToExport {
@@ -108,6 +144,7 @@ RCT_EXPORT_MODULE();
         float progressIntervalScope = [mmkv getFloatForKey:PROGRESS_INTERVAL_KEY];
         progressInterval = isnan(progressIntervalScope) ? 1.0 : progressIntervalScope;
         lastProgressReportedAt = [[NSDate alloc] init];
+        pendingEvents = [[NSMutableArray alloc] init];
 
         [self registerBridgeListener];
     }
@@ -123,8 +160,20 @@ RCT_EXPORT_MODULE();
 
 - (void)handleBridgeHotReload:(NSNotification *) note {
     DLog(@"[RNBackgroundDownloader] - [handleBridgeHotReload]");
+    [self handleBridgeTeardown];
+}
+
+- (void)handleBridgeDidInvalidate:(NSNotification *)note {
+    DLog(@"[RNBackgroundDownloader] - [handleBridgeDidInvalidate]");
+    [self handleBridgeTeardown];
+}
+
+- (void)handleBridgeTeardown {
     [self unregisterSession];
-    [self unregisterBridgeListener];
+    @synchronized (sharedLock) {
+        hasListeners = NO;
+        [pendingEvents removeAllObjects];
+    }
 }
 
 - (void)lazyRegisterSession {
@@ -160,9 +209,15 @@ RCT_EXPORT_MODULE();
                                                   object:nil];
 
             [[NSNotificationCenter defaultCenter] addObserver:self
-                                                  selector:@selector(handleBridgeJavascriptLoad:)
-                                                  name:RCTJavaScriptDidLoadNotification
+                                                  selector:@selector(handleBridgeHotReload:)
+                                                  name:RCTBridgeWillReloadNotification
                                                   object:nil];
+
+            [[NSNotificationCenter defaultCenter] addObserver:self
+                                                  selector:@selector(handleBridgeDidInvalidate:)
+                                                  name:RCTBridgeDidInvalidateNotification
+                                                  object:nil];
+
         }
     }
 }
@@ -175,9 +230,19 @@ RCT_EXPORT_MODULE();
     }
 }
 
-- (void)handleBridgeJavascriptLoad:(NSNotification *) note {
-    DLog(@"[RNBackgroundDownloader] - [handleBridgeJavascriptLoad]");
-    isJavascriptLoaded = YES;
+- (void)setBridge:(RCTBridge *)bridge
+{
+    DLog(@"[RNBackgroundDownloader] - [setBridge:]");
+    [super setBridge:bridge];
+    [self registerBridgeListener];
+}
+
+- (void)invalidate
+{
+    DLog(@"[RNBackgroundDownloader] - [invalidate]");
+    [super invalidate];
+    [self handleBridgeTeardown];
+    [self unregisterBridgeListener];
 }
 
 - (void)handleBridgeAppEnterForeground:(NSNotification *) note {
@@ -409,24 +474,22 @@ RCT_EXPORT_METHOD(checkForExistingDownloads: (RCTPromiseResolveBlock)resolve rej
                 [self saveFile:taskConfig downloadURL:location error:&error];
             }
 
-            if (self.bridge && isJavascriptLoaded) {
-                if (error == nil) {
-                    NSDictionary *responseHeaders = ((NSHTTPURLResponse *)downloadTask.response).allHeaderFields;
-                    [self sendEventWithName:@"downloadComplete" body:@{
-                        @"id": taskConfig.id,
-                        @"headers": responseHeaders,
-                        @"location": taskConfig.destination,
-                        @"bytesDownloaded": [NSNumber numberWithLongLong:downloadTask.countOfBytesReceived],
-                        @"bytesTotal": [NSNumber numberWithLongLong:downloadTask.countOfBytesExpectedToReceive]
-                    }];
-                } else {
-                    [self sendEventWithName:@"downloadFailed" body:@{
-                        @"id": taskConfig.id,
-                        @"error": [error localizedDescription],
-                        // TODO
-                        @"errorCode": @-1
-                    }];
-                }
+            if (error == nil) {
+                NSDictionary *responseHeaders = ((NSHTTPURLResponse *)downloadTask.response).allHeaderFields;
+                [self emitEventWithName:@"downloadComplete" body:@{
+                    @"id": taskConfig.id,
+                    @"headers": responseHeaders,
+                    @"location": taskConfig.destination,
+                    @"bytesDownloaded": [NSNumber numberWithLongLong:downloadTask.countOfBytesReceived],
+                    @"bytesTotal": [NSNumber numberWithLongLong:downloadTask.countOfBytesExpectedToReceive]
+                }];
+            } else {
+                [self emitEventWithName:@"downloadFailed" body:@{
+                    @"id": taskConfig.id,
+                    @"error": [error localizedDescription],
+                    // TODO
+                    @"errorCode": @-1
+                }];
             }
 
             [self removeTaskFromMap:downloadTask];
@@ -450,13 +513,11 @@ RCT_EXPORT_METHOD(checkForExistingDownloads: (RCTPromiseResolveBlock)resolve rej
         if (taskConfig != nil) {
             if (!taskConfig.reportedBegin) {
                 NSDictionary *responseHeaders = ((NSHTTPURLResponse *)downloadTask.response).allHeaderFields;
-                if (self.bridge && isJavascriptLoaded) {
-                    [self sendEventWithName:@"downloadBegin" body:@{
-                        @"id": taskConfig.id,
-                        @"expectedBytes": [NSNumber numberWithLongLong: bytesTotalExpectedToWrite],
-                        @"headers": responseHeaders
-                    }];
-                }
+                [self emitEventWithName:@"downloadBegin" body:@{
+                    @"id": taskConfig.id,
+                    @"expectedBytes": [NSNumber numberWithLongLong: bytesTotalExpectedToWrite],
+                    @"headers": responseHeaders
+                }];
                 taskConfig.reportedBegin = YES;
             }
 
@@ -473,9 +534,7 @@ RCT_EXPORT_METHOD(checkForExistingDownloads: (RCTPromiseResolveBlock)resolve rej
 
             NSDate *now = [[NSDate alloc] init];
             if ([now timeIntervalSinceDate:lastProgressReportedAt] > progressInterval && progressReports.count > 0) {
-                if (self.bridge && isJavascriptLoaded) {
-                    [self sendEventWithName:@"downloadProgress" body:[progressReports allValues]];
-                }
+                [self emitEventWithName:@"downloadProgress" body:[progressReports allValues]];
                 lastProgressReportedAt = now;
                 [progressReports removeAllObjects];
             }
@@ -498,14 +557,12 @@ RCT_EXPORT_METHOD(checkForExistingDownloads: (RCTPromiseResolveBlock)resolve rej
         // -999 code represents incomplete tasks.
         // Required to continue resume tasks.
         if (error.code != -999) {
-            if (self.bridge && isJavascriptLoaded) {
-                [self sendEventWithName:@"downloadFailed" body:@{
-                    @"id": taskConfig.id,
-                    @"error": [error localizedDescription],
-                    // TODO
-                    @"errorCode": @-1
-                }];
-            }
+            [self emitEventWithName:@"downloadFailed" body:@{
+                @"id": taskConfig.id,
+                @"error": [error localizedDescription],
+                // TODO
+                @"errorCode": @-1
+            }];
             [self removeTaskFromMap:task];
         }
     }

@@ -1,7 +1,11 @@
 import { NativeModules } from 'react-native'
 import { TaskInfo } from '..'
 
+type Handler = (...args: any[]) => void
+
 const { RNBackgroundDownloader } = NativeModules
+
+type HandlerName = 'begin' | 'progress' | 'done' | 'error'
 
 function validateHandler (handler) {
   const type = typeof handler
@@ -18,10 +22,105 @@ export default class DownloadTask {
   bytesDownloaded = 0
   bytesTotal = 0
 
-  beginHandler
-  progressHandler
-  doneHandler
-  errorHandler
+  private handlerStore: Partial<Record<HandlerName, Handler>> = {}
+
+  private setHandler (name: HandlerName, handler?: Handler) {
+    if (handler == null) {
+      this.handlerStore[name] = undefined
+      return
+    }
+
+    validateHandler(handler)
+    this.handlerStore[name] = handler
+  }
+
+  private getHandler (name: HandlerName): Handler | undefined {
+    return this.handlerStore[name]
+  }
+
+  set beginHandler (handler: Handler | undefined) {
+    this.setHandler('begin', handler)
+  }
+
+  get beginHandler (): Handler | undefined {
+    return this.getHandler('begin')
+  }
+
+  set _beginHandler (handler: Handler | undefined) {
+    this.beginHandler = handler
+  }
+
+  get _beginHandler (): Handler | undefined {
+    return this.beginHandler
+  }
+
+  set progressHandler (handler: Handler | undefined) {
+    this.setHandler('progress', handler)
+  }
+
+  get progressHandler (): Handler | undefined {
+    return this.getHandler('progress')
+  }
+
+  set _progressHandler (handler: Handler | undefined) {
+    this.progressHandler = handler
+  }
+
+  get _progressHandler (): Handler | undefined {
+    return this.progressHandler
+  }
+
+  set doneHandler (handler: Handler | undefined) {
+    this.setHandler('done', handler)
+  }
+
+  get doneHandler (): Handler | undefined {
+    return this.getHandler('done')
+  }
+
+  set _doneHandler (handler: Handler | undefined) {
+    this.doneHandler = handler
+  }
+
+  get _doneHandler (): Handler | undefined {
+    return this.doneHandler
+  }
+
+  set errorHandler (handler: Handler | undefined) {
+    this.setHandler('error', handler)
+  }
+
+  get errorHandler (): Handler | undefined {
+    return this.getHandler('error')
+  }
+
+  set _errorHandler (handler: Handler | undefined) {
+    this.errorHandler = handler
+  }
+
+  get _errorHandler (): Handler | undefined {
+    return this.errorHandler
+  }
+
+  private setBeginHandler (handler?: Handler) {
+    if (handler == null) return
+    this.beginHandler = handler
+  }
+
+  private setProgressHandler (handler?: Handler) {
+    if (handler == null) return
+    this.progressHandler = handler
+  }
+
+  private setDoneHandler (handler?: Handler) {
+    if (handler == null) return
+    this.doneHandler = handler
+  }
+
+  private setErrorHandler (handler?: Handler) {
+    if (handler == null) return
+    this.errorHandler = handler
+  }
 
   constructor (taskInfo: TaskInfo, originalTask?: TaskInfo) {
     this.id = taskInfo.id
@@ -33,34 +132,30 @@ export default class DownloadTask {
       this.metadata = metadata
 
     if (originalTask) {
-      this.beginHandler = originalTask.beginHandler
-      this.progressHandler = originalTask.progressHandler
-      this.doneHandler = originalTask.doneHandler
-      this.errorHandler = originalTask.errorHandler
+      this.setBeginHandler(originalTask.beginHandler ?? originalTask._beginHandler)
+      this.setProgressHandler(originalTask.progressHandler ?? originalTask._progressHandler)
+      this.setDoneHandler(originalTask.doneHandler ?? originalTask._doneHandler)
+      this.setErrorHandler(originalTask.errorHandler ?? originalTask._errorHandler)
     }
   }
 
   begin (handler) {
-    validateHandler(handler)
-    this.beginHandler = handler
+    this.setBeginHandler(handler)
     return this
   }
 
   progress (handler) {
-    validateHandler(handler)
-    this.progressHandler = handler
+    this.setProgressHandler(handler)
     return this
   }
 
   done (handler) {
-    validateHandler(handler)
-    this.doneHandler = handler
+    this.setDoneHandler(handler)
     return this
   }
 
   error (handler) {
-    validateHandler(handler)
-    this.errorHandler = handler
+    this.setErrorHandler(handler)
     return this
   }
 

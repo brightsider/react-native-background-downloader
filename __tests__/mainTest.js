@@ -165,3 +165,77 @@ test('wrong handler type', () => {
     dt.error('not function')
   }).toThrow()
 })
+
+test('exposes legacy handler aliases', () => {
+  const dt = RNBackgroundDownloader.download({
+    id: 'legacyHandlers',
+    url: 'test',
+    destination: 'test',
+  })
+
+  const beginHandler = jest.fn()
+  const progressHandler = jest.fn()
+  const doneHandler = jest.fn()
+  const errorHandler = jest.fn()
+
+  dt
+    .begin(beginHandler)
+    .progress(progressHandler)
+    .done(doneHandler)
+    .error(errorHandler)
+
+  expect(dt.beginHandler).toBe(beginHandler)
+  expect(dt._beginHandler).toBe(beginHandler)
+  expect(dt.progressHandler).toBe(progressHandler)
+  expect(dt._progressHandler).toBe(progressHandler)
+  expect(dt.doneHandler).toBe(doneHandler)
+  expect(dt._doneHandler).toBe(doneHandler)
+  expect(dt.errorHandler).toBe(errorHandler)
+  expect(dt._errorHandler).toBe(errorHandler)
+})
+
+test('legacy handler alias assignment triggers callbacks', () => {
+  const beginHandler = jest.fn()
+
+  const dt = RNBackgroundDownloader.download({
+    id: 'legacyAliasAssignment',
+    url: 'test',
+    destination: 'test',
+  })
+
+  expect(() => {
+    dt._beginHandler = 'nope'
+  }).toThrow('[RNBackgroundDownloader] expected argument to be a function, got: string')
+
+  dt._beginHandler = beginHandler
+
+  nativeEmitter.emit('downloadBegin', {
+    id: 'legacyAliasAssignment',
+  })
+
+  expect(beginHandler).toHaveBeenCalledTimes(1)
+})
+
+test('direct handler property assignment remains reactive', () => {
+  const progressHandler = jest.fn()
+
+  const dt = RNBackgroundDownloader.download({
+    id: 'directPropertyAssignment',
+    url: 'test',
+    destination: 'test',
+  })
+
+  expect(() => {
+    dt.progressHandler = 'nope'
+  }).toThrow('[RNBackgroundDownloader] expected argument to be a function, got: string')
+
+  dt.progressHandler = progressHandler
+
+  nativeEmitter.emit('downloadProgress', [{
+    id: 'directPropertyAssignment',
+    bytesDownloaded: 5,
+    bytesTotal: 10,
+  }])
+
+  expect(progressHandler).toHaveBeenCalledTimes(1)
+})

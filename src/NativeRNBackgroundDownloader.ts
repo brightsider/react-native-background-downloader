@@ -24,19 +24,16 @@ export type ExistingDownload = {
   bytesTotal: number
 }
 
+export type NativeRNBackgroundDownloaderConstants = {
+  documents: string
+  TaskRunning: number
+  TaskSuspended: number
+  TaskCanceling: number
+  TaskCompleted: number
+}
+
 export interface Spec extends TurboModule {
-  readonly getConstants: () => {
-    documents: string
-    TaskRunning: number
-    TaskSuspended: number
-    TaskCanceling: number
-    TaskCompleted: number
-  }
-  readonly documents: string
-  readonly TaskRunning: number
-  readonly TaskSuspended: number
-  readonly TaskCanceling: number
-  readonly TaskCompleted: number
+  readonly getConstants: () => NativeRNBackgroundDownloaderConstants
   download(options: DownloadOptions): void
   pauseTask(configId: string): void
   resumeTask(configId: string): void
