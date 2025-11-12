@@ -1,8 +1,14 @@
 import { NativeModules, NativeEventEmitter } from 'react-native'
 import DownloadTask from './lib/DownloadTask'
+import NativeRNBackgroundDownloader, { type Spec as NativeBackgroundDownloaderSpec } from './src/NativeRNBackgroundDownloader'
 
-const { RNBackgroundDownloader } = NativeModules
-const RNBackgroundDownloaderEmitter = new NativeEventEmitter(RNBackgroundDownloader)
+const isTurboModuleEnabled = (global as any).__turboModuleProxy != null
+
+const NativeModule: NativeBackgroundDownloaderSpec = isTurboModuleEnabled
+  ? NativeRNBackgroundDownloader
+  : (NativeModules.RNBackgroundDownloader as NativeBackgroundDownloaderSpec)
+
+const RNBackgroundDownloaderEmitter = new NativeEventEmitter(NativeModule as any)
 
 const MIN_PROGRESS_INTERVAL = 250
 const tasksMap = new Map()
@@ -64,7 +70,7 @@ export function setConfig ({ headers, progressInterval, isLogsEnabled }) {
 
 export function checkForExistingDownloads () {
   log('[RNBackgroundDownloader] checkForExistingDownloads-1')
-  return RNBackgroundDownloader.checkForExistingDownloads()
+  return NativeModule.checkForExistingDownloads()
     .then(foundTasks => {
       log('[RNBackgroundDownloader] checkForExistingDownloads-2', foundTasks)
       return foundTasks.map(taskInfo => {
@@ -72,14 +78,14 @@ export function checkForExistingDownloads () {
         const task = new DownloadTask(taskInfo, tasksMap.get(taskInfo.id))
         log('[RNBackgroundDownloader] checkForExistingDownloads-3', taskInfo)
 
-        if (taskInfo.state === RNBackgroundDownloader.TaskRunning) {
+        if (taskInfo.state === NativeModule.TaskRunning) {
           task.state = 'DOWNLOADING'
-        } else if (taskInfo.state === RNBackgroundDownloader.TaskSuspended) {
+        } else if (taskInfo.state === NativeModule.TaskSuspended) {
           task.state = 'PAUSED'
-        } else if (taskInfo.state === RNBackgroundDownloader.TaskCanceling) {
+        } else if (taskInfo.state === NativeModule.TaskCanceling) {
           task.stop()
           return null
-        } else if (taskInfo.state === RNBackgroundDownloader.TaskCompleted) {
+        } else if (taskInfo.state === NativeModule.TaskCompleted) {
           if (taskInfo.bytesDownloaded === taskInfo.bytesTotal)
             task.state = 'DONE'
           else
@@ -110,7 +116,7 @@ export function completeHandler (jobId: string) {
     return
   }
 
-  return RNBackgroundDownloader.completeHandler(jobId)
+  return NativeModule.completeHandler(jobId)
 }
 
 type DownloadOptions = {
@@ -147,7 +153,7 @@ export function download (options: DownloadOptions) {
   })
   tasksMap.set(options.id, task)
 
-  RNBackgroundDownloader.download({
+  NativeModule.download({
     ...options,
     metadata: JSON.stringify(options.metadata),
     progressInterval: config.progressInterval,
@@ -157,7 +163,7 @@ export function download (options: DownloadOptions) {
 }
 
 export const directories = {
-  documents: RNBackgroundDownloader.documents,
+  documents: NativeModule.documents,
 }
 
 export default {

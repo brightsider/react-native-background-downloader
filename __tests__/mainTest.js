@@ -1,5 +1,5 @@
 import RNBackgroundDownloader from '../index'
-import DownloadTask from '../lib/downloadTask'
+import DownloadTask from '../lib/DownloadTask'
 import { NativeModules, NativeEventEmitter } from 'react-native'
 
 const RNBackgroundDownloaderNative = NativeModules.RNBackgroundDownloader

@@ -1,6 +1,10 @@
 #import "RNBackgroundDownloader.h"
 #import "RNBGDTaskConfig.h"
 #import <MMKV/MMKV.h>
+#ifdef RCT_NEW_ARCH_ENABLED
+#import "RNBackgroundDownloaderSpec.h"
+using namespace facebook::react;
+#endif
 
 #define ID_TO_CONFIG_MAP_KEY @"com.eko.bgdownloadidmap"
 #define PROGRESS_INTERVAL_KEY @"progressInterval"
@@ -31,6 +35,13 @@ static CompletionHandler storedCompletionHandler;
 }
 
 RCT_EXPORT_MODULE();
+
+#ifdef RCT_NEW_ARCH_ENABLED
+- (std::shared_ptr<TurboModule>)getTurboModule:(const ObjCTurboModule::InitParams &)params
+{
+    return std::make_shared<NativeRNBackgroundDownloaderSpecJSI>(params);
+}
+#endif
 
 - (dispatch_queue_t)methodQueue
 {

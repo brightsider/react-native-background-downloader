@@ -3,14 +3,13 @@ package com.eko;
 import androidx.annotation.NonNull;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
-import com.facebook.react.bridge.ReactContextBaseJavaModule;
-import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.module.annotations.ReactModule;
+import com.eko.NativeRNBackgroundDownloaderSpec;
 import java.util.Map;
 
 @ReactModule(name = RNBackgroundDownloaderModuleImpl.NAME)
-public class RNBackgroundDownloaderModule extends ReactContextBaseJavaModule {
+public class RNBackgroundDownloaderModule extends NativeRNBackgroundDownloaderSpec {
   private final RNBackgroundDownloaderModuleImpl module;
 
   public RNBackgroundDownloaderModule(ReactApplicationContext reactContext) {
@@ -25,7 +24,7 @@ public class RNBackgroundDownloaderModule extends ReactContextBaseJavaModule {
   }
 
   @Override
-  public Map<String, Object> getConstants() {
+  protected Map<String, Object> getTypedExportedConstants() {
     return module.getConstants();
   }
 
@@ -40,42 +39,42 @@ public class RNBackgroundDownloaderModule extends ReactContextBaseJavaModule {
     module.invalidate();
   }
 
-  @ReactMethod
+  @Override
   public void download(ReadableMap options) {
     module.download(options);
   }
 
-  @ReactMethod
+  @Override
   public void pauseTask(String configId) {
     module.pauseTask(configId);
   }
 
-  @ReactMethod
+  @Override
   public void resumeTask(String configId) {
     module.resumeTask(configId);
   }
 
-  @ReactMethod
+  @Override
   public void stopTask(String configId) {
     module.stopTask(configId);
   }
 
-  @ReactMethod
+  @Override
   public void completeHandler(String configId) {
     module.completeHandler(configId);
   }
 
-  @ReactMethod
+  @Override
   public void checkForExistingDownloads(Promise promise) {
     module.checkForExistingDownloads(promise);
   }
 
-  @ReactMethod
+  @Override
   public void addListener(String eventName) {
     module.addListener(eventName);
   }
 
-  @ReactMethod
+  @Override
   public void removeListeners(double count) {
     module.removeListeners(count);
   }
