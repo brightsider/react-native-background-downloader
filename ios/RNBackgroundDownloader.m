@@ -215,7 +215,7 @@ RCT_EXPORT_MODULE();
 
             [[NSNotificationCenter defaultCenter] addObserver:self
                                                   selector:@selector(handleBridgeDidInvalidate:)
-                                                  name:RCTBridgeDidInvalidateNotification
+                                                  name:RCTBridgeWillBeInvalidatedNotification
                                                   object:nil];
 
         }
